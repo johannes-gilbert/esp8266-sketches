@@ -216,12 +216,30 @@ const char MAIN_page[] PROGMEM = R"=====(
 long now = millis();
 long lastMeasure = 0;
 
-/** This functions reconnects your ESP8266 to your MQTT broker */
+/** Timestamp for MQTT reconnect: now */
+long mqttReconnectNow = 0;
+/** Timestamp for MQTT reconnect: last attempt */
+long mqttReconnectLastMeasure = 0;
+
+/** 
+*    This functions reconnects your ESP8266 to your MQTT broker. 
+*    
+*/
 // Change the function below if you want to subscribe to more topics with your ESP8266 
 void reconnect() {
+  mqttReconnectNow = 0;
+  mqttReconnectLastMeasure = 0;
   // Loop until we're reconnected
   while (!pubSubClient.connected()) {
-    Serial.print("Attempting MQTT connection...");
+
+    // Wait 5 seconds before attempting a reconnect
+    mqttReconnectNow = millis();
+    if (mqttReconnectNow - mqttReconnectLastMeasure < 5000) {
+      mqttReconnectLastMeasure = mqttReconnectNow;
+      continue;
+    }
+
+    Serial.print("Attempting to reestablish the MQTT connection...");
     // Attempt to connect
     if (pubSubClient.connect(mqtt_client_name, MQTT_username, MQTT_password)) {
       Serial.println("connected");  
@@ -230,12 +248,12 @@ void reconnect() {
       pubSubClient.subscribe(tmp.c_str());
       tmp = String(mqtt_client_name) + "/testmode";
       pubSubClient.subscribe(tmp.c_str());
+    
     } else {
+      // Connecting failed
       Serial.print("failed, rc=");
       Serial.print(pubSubClient.state());
       Serial.println(" try again in 5 seconds");
-      // Wait 5 seconds before retrying
-      delay(5000); //todo: switch to using millis()
     }
   }
 }
